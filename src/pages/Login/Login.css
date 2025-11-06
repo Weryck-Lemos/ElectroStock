@@ -1,0 +1,123 @@
+.login-container {
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  background-image: url("../../imagens/wallpaper.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.login-box {
+  width: 450px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  padding: 50px;
+  border-radius: 25px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  animation: slideIn 0.6s ease;
+  position: relative;
+}
+
+.login-user-icon {
+  width: 90px;
+  height: 90px;
+  margin-bottom: 0px;
+  filter: drop-shadow(3px 3px 3px rgba(0,0,0,0.4));
+}
+
+h2 {
+  margin-bottom: 25px;
+  font-size: 26px;
+  color: #ffffff;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.3);
+  margin-bottom: 15px;
+}
+
+.icon {
+  width: 22px;
+  margin-right: 8px;
+}
+
+.input-group input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  color: #fff;
+}
+
+.input-group input::placeholder {
+  color: rgba(255,255,255,0.8);
+}
+
+.extras {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  font-size: 14px;
+  color: #fff;
+  font-size: 15px;
+}
+
+.extras a {
+  color: #fff;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+
+.extras a:hover {
+  color: #d0e6ff;
+}
+
+.btn-login {
+  width: 100%;
+  padding: 12px;
+  font-size: 17px;
+  background: rgba(255,255,255,0.85);
+  border: none;
+  border-radius: 10px;
+  color: #0066cc;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn-login:hover {
+  transform: scale(1.05);
+  background: #fff;
+}
+
+.back-arrow {
+  position: absolute;
+  top: 15px;
+  left: 20px;
+  font-size: 24px;
+  color: white;
+  text-decoration: none;
+  background: rgba(255,255,255,0.2);
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: 0.3s;
+}
+
+.back-arrow:hover {
+  background: rgba(255,255,255,0.4);
+  transform: scale(1.1);
+}
+
