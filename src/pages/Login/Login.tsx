@@ -1,10 +1,12 @@
 import "./Login.css";
+import {useNavigate} from "react-router-dom";
 import {Link} from "react-router-dom";
 import userIcon from "./imagens/user.png";
 import mailIcon from "./imagens/mail.png";
 import lockIcon from "./imagens/lock.png";
 
 export default function Login() {
+  const navigate = useNavigate();
   return (
     <div className="login-container">
       <div className="login-box">
@@ -30,7 +32,7 @@ export default function Login() {
           <Link to="/registrar">Registrar</Link>
         </div>
 
-        <button className="btn-login">Entrar</button>
+        <button onClick={() => navigate("/dashboard")} className="btn-login">Entrar</button>
       </div>
     </div>
   );
