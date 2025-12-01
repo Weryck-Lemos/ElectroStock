@@ -11,9 +11,12 @@ O projeto conta com páginas de **Login**, **Registro** e **Home**, além de um 
 
 - **React + Vite**
 - **TypeScript**
-- **CSS puro**
+- **TailWind CSS**
 - **React Router DOM**
-
+- **FastAPI**
+- **Pydantic**
+- **Uvicorn**
+- **Fetch API**
 ## ⚙️ Como executar
 
 1. Clone este repositório:
@@ -34,4 +37,10 @@ npm install
 4. Inicie o servidor de desenvolvimento:
 ```bash
 npm run dev
+```
+
+5. Inicie o backend:
+```bash
+cd backend
+./start_backend.sh
 ```

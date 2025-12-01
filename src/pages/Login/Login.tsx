@@ -1,11 +1,71 @@
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import userIcon from "./imagens/user.png";
 import mailIcon from "./imagens/mail.png";
 import lockIcon from "./imagens/lock.png";
 import wallpaper from "../../imagens/wallpaper.jpg";
 
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+}
+
+interface AuthResponse {
+  message: string;
+  user: User;
+}
+
 export default function Login() {
   const navigate = useNavigate();
+
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleLogin() {
+    setErro("");
+
+    if (!email || !senha) {
+      setErro("Preencha email e senha.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const resp = await fetch("http://127.0.0.1:8000/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: senha }),
+      });
+
+      const data = (await resp.json()) as AuthResponse | { detail?: string };
+
+      if (!resp.ok) {
+        const detail = (data as any).detail ?? "Erro ao fazer login.";
+        setErro(detail);
+        return;
+      }
+
+      const user = (data as AuthResponse).user;
+
+      localStorage.setItem("user", JSON.stringify(user));
+
+      if (user.role === "admin") {
+        navigate("/dashboardAdmin");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (e) {
+      console.error("Erro no fetch /login:", e);
+      setErro("Erro de conexão com o servidor.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div
@@ -36,6 +96,8 @@ export default function Login() {
             type="email"
             placeholder="Email"
             className="flex-1 bg-transparent text-white placeholder-white/80 focus:outline-none text-[15px]"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
         </div>
 
@@ -45,6 +107,8 @@ export default function Login() {
             type="password"
             placeholder="Senha"
             className="flex-1 bg-transparent text-white placeholder-white/80 focus:outline-none text-[15px]"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
           />
         </div>
 
@@ -57,11 +121,19 @@ export default function Login() {
           </Link>
         </div>
 
+        {erro && (
+          <p className="text-red-200 text-sm mb-3 text-left">
+            {erro}
+          </p>
+        )}
+
         <button
-          onClick={() => navigate("/dashboard")}
-          className="w-full py-3 text-lg bg-white/90 text-blue-700 rounded-xl hover:scale-105 hover:bg-white transition-all duration-300 font-semibold"
+          type="button"
+          onClick={handleLogin}
+          disabled={loading}
+          className="w-full py-3 text-lg bg-white/90 text-blue-700 rounded-xl hover:scale-105 hover:bg-white transition-all duration-300 font-semibold disabled:opacity-70 disabled:hover:scale-100"
         >
-          Entrar
+          {loading ? "Entrando..." : "Entrar"}
         </button>
       </div>
     </div>
