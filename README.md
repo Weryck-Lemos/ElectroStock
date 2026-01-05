@@ -40,12 +40,12 @@ erDiagram
     string name
     string email "unique"
     string password_hash
-    string role
+    string role "user|admin"
   }
 
   CATEGORIES {
     int id PK
-    string name "unique"
+    string name
   }
 
   ITEMS {
@@ -70,6 +70,7 @@ erDiagram
   }
 
   USERS ||--o{ ORDERS : "faz"
-  CATEGORIES ||--o{ ITEMS : "classifica"
-  ORDERS ||--o{ ORDER_ITEMS : "contém"
-  ITEMS ||--o{ ORDER_ITEMS : "compõe"
+  CATEGORIES ||--o{ ITEMS : "contém"
+  ORDERS ||--o{ ORDER_ITEMS : "inclui"
+  ITEMS ||--o{ ORDER_ITEMS : "é solicitado em"
+
