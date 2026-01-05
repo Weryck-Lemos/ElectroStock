@@ -1,8 +1,58 @@
-# ⚡ ElectroStock
+# ElectroStock API
 
-Sistema web desenvolvido como parte da disciplina **Desenvolvimento de Software para a Web** — Universidade Federal do Ceará (UFC), semestre **2025.2**.
+Backend da aplicação **ElectroStock**, um sistema de **controle de estoque** e **gestão de pedidos** para componentes eletrônicos. A API oferece cadastro e autenticação de usuários com JWT, gerenciamento de categorias e itens do estoque e um fluxo de aprovação de pedidos com controle de acesso por perfil.
 
-O **ElectroStock** é uma aplicação full stack para simular o gerenciamento de itens de um almoxarifado e o fluxo de pedidos (usuário solicita, administrador aprova/recusa/finaliza).
+O projeto foi desenvolvido com foco em boas práticas de estruturação de backend com FastAPI, validações com Pydantic, persistência em SQLite e documentação automática via OpenAPI.
+
+---
+
+## Funcionalidades
+
+### Autenticação e autorização
+- Registro de usuário
+- Login com geração de token JWT
+- Rotas protegidas via Bearer token
+- Controle de acesso por perfil `user` e `admin`
+
+### Estoque
+- CRUD de categorias
+- CRUD de itens com vínculo a categoria
+- Controle de quantidade em estoque
+
+### Pedidos
+- Criação de pedidos com itens e quantidades
+- Listagem de pedidos do usuário
+- Listagem geral de pedidos (admin)
+- Fluxo de status `pending` `approved` `rejected` `finished`
+- Itens do pedido armazenados em tabela associativa
+
+---
+
+## Stack e ferramentas utilizadas
+
+- Python 3.10+
+- FastAPI
+- Uvicorn
+- Pydantic
+- SQLAlchemy
+- SQLite
+- JWT JSON Web Token
+- python-multipart para login via form-data no padrão OAuth2
+
+---
+
+## Estrutura do projeto
+
+Organização modular por responsabilidade.
+
+- `main.py` ponto de entrada do backend
+- `app/main.py` instancia o FastAPI e registra os routers
+- `app/routers/` rotas por domínio `auth` `users` `items` `categories` `orders` `order-items`
+- `app/models/` modelos SQLAlchemy e tabelas
+- `app/schemas/` schemas Pydantic de request e response
+- `app/services/` regras de negócio
+- `app/database.py` conexão e sessão do banco
+- `app/core/` configurações e segurança
 
 ---
 
