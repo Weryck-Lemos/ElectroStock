@@ -12,9 +12,8 @@ interface User {
   role: string;
 }
 
-interface AuthResponse {
-  message: string;
-  user: User;
+interface ApiError {
+  detail?: string;
 }
 
 export default function Login() {
@@ -36,22 +35,36 @@ export default function Login() {
     try {
       setLoading(true);
 
-      const resp = await fetch("http://127.0.0.1:8000/login", {
+      // 1) Login (JSON)
+      const resp = await fetch("http://127.0.0.1:8000/auth/login-json", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password: senha }),
       });
 
-      const data = (await resp.json()) as AuthResponse | { detail?: string };
+      const data = (await resp.json()) as { access_token?: string; token_type?: string } & ApiError;
 
-      if (!resp.ok) {
-        const detail = (data as any).detail ?? "Erro ao fazer login.";
-        setErro(detail);
+      if (!resp.ok || !data.access_token) {
+        setErro(data.detail ?? "Erro ao fazer login.");
         return;
       }
 
-      const user = (data as AuthResponse).user;
+      const token = data.access_token;
+      localStorage.setItem("token", token);
 
+      // 2) Buscar usuário logado
+      const meResp = await fetch("http://127.0.0.1:8000/users/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const meData = (await meResp.json()) as User | ApiError;
+
+      if (!meResp.ok) {
+        setErro((meData as ApiError).detail ?? "Falha ao carregar usuário.");
+        return;
+      }
+
+      const user = meData as User;
       localStorage.setItem("user", JSON.stringify(user));
 
       if (user.role === "admin") {
@@ -60,7 +73,7 @@ export default function Login() {
         navigate("/dashboard");
       }
     } catch (e) {
-      console.error("Erro no fetch /login:", e);
+      console.error("Erro no login:", e);
       setErro("Erro de conexão com o servidor.");
     } finally {
       setLoading(false);
@@ -121,11 +134,7 @@ export default function Login() {
           </Link>
         </div>
 
-        {erro && (
-          <p className="text-red-200 text-sm mb-3 text-left">
-            {erro}
-          </p>
-        )}
+        {erro && <p className="text-red-200 text-sm mb-3 text-left">{erro}</p>}
 
         <button
           type="button"

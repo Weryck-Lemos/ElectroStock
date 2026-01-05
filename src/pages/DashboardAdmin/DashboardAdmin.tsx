@@ -1,11 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-type Item = { id: number; name: string; stock: number };
+const API_URL = "http://127.0.0.1:8000";
+
+type Item = { id: number; name: string; stock: number; description?: string | null };
 type OrderItem = { item_id: number; quantity: number };
 type Status = "pending" | "approved" | "rejected" | "finished";
-type Order = { id: number; user_email: string; items: OrderItem[]; status: Status };
+
+type Order = {
+  id: number;
+  status: Status;
+  items: OrderItem[];
+  user_email?: string; // pode vir assim
+  user?: { email?: string; name?: string }; // ou assim, dependendo do backend
+};
+
+type ApiError = { detail?: string };
+
+function getToken() {
+  return localStorage.getItem("token") || "";
+}
+
+function authHeaders() {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 export default function DashboardAdmin() {
+  const navigate = useNavigate();
+
   const [items, setItems] = useState<Item[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState("");
@@ -13,15 +36,57 @@ export default function DashboardAdmin() {
   const [loadingAction, setLoadingAction] = useState<number | null>(null);
   const [tab, setTab] = useState<Status | "reports">("pending");
 
+  function logout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
+  }
+
+  // Garante que é admin e token existe
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    // opcional: checar role salva no localStorage (rápido)
+    const rawUser = localStorage.getItem("user");
+    if (rawUser) {
+      try {
+        const u = JSON.parse(rawUser) as { role?: string };
+        if (u.role !== "admin") {
+          navigate("/dashboard");
+        }
+      } catch {
+        // ignora
+      }
+    }
+  }, [navigate]);
+
   useEffect(() => {
     async function load() {
+      setError("");
       try {
-        const [it, od] = await Promise.all([
-          fetch("http://127.0.0.1:8000/items"),
-          fetch("http://127.0.0.1:8000/orders"),
+        const [itResp, odResp] = await Promise.all([
+          fetch(`${API_URL}/items`, { headers: { ...authHeaders() } }),
+          fetch(`${API_URL}/orders`, { headers: { ...authHeaders() } }),
         ]);
-        setItems(await it.json());
-        setOrders(await od.json());
+
+        const itData = (await itResp.json().catch(() => [])) as Item[] | ApiError;
+        const odData = (await odResp.json().catch(() => [])) as Order[] | ApiError;
+
+        if (!itResp.ok) {
+          setError((itData as ApiError).detail ?? "Erro ao carregar itens.");
+          return;
+        }
+        if (!odResp.ok) {
+          setError((odData as ApiError).detail ?? "Erro ao carregar pedidos.");
+          return;
+        }
+
+        setItems(itData as Item[]);
+        setOrders(odData as Order[]);
       } catch {
         setError("Erro ao carregar dados.");
       }
@@ -31,6 +96,9 @@ export default function DashboardAdmin() {
 
   const getItemName = (id: number) =>
     items.find((i) => i.id === id)?.name ?? `Item #${id}`;
+
+  const getOrderEmail = (o: Order) =>
+    o.user_email ?? o.user?.email ?? "—";
 
   const statusLabel: Record<Status, string> = {
     pending: "Pendente",
@@ -52,19 +120,19 @@ export default function DashboardAdmin() {
     setLoadingAction(id);
 
     try {
-      const resp = await fetch(`http://127.0.0.1:8000/orders/${id}/${action}`, {
+      const resp = await fetch(`${API_URL}/orders/${id}/${action}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
       });
 
-      const data = await resp.json();
+      const data = (await resp.json().catch(() => ({}))) as Order | ApiError;
 
       if (!resp.ok) {
-        setError(data.detail ?? "Erro ao atualizar pedido.");
+        setError((data as ApiError).detail ?? "Erro ao atualizar pedido.");
         return;
       }
 
-      setOrders((prev) => prev.map((o) => (o.id === id ? data : o)));
+      setOrders((prev) => prev.map((o) => (o.id === id ? (data as Order) : o)));
 
       const txt =
         action === "approve" ? "aprovado" :
@@ -78,8 +146,7 @@ export default function DashboardAdmin() {
     }
   }
 
-  const filteredOrders =
-    tab === "reports" ? [] : orders.filter((o) => o.status === tab);
+  const filteredOrders = tab === "reports" ? [] : orders.filter((o) => o.status === tab);
 
   const totalPedidos = orders.length;
 
@@ -96,9 +163,11 @@ export default function DashboardAdmin() {
     {} as Record<Status, number>
   );
 
-  const usuariosUnicos = new Set(orders.map((o) => o.user_email)).size;
+  const usuariosUnicos = useMemo(() => {
+    return new Set(orders.map((o) => getOrderEmail(o))).size;
+  }, [orders]);
 
-  const pedidosPorItem = (() => {
+  const pedidosPorItem = useMemo(() => {
     const mapa = new Map<number, number>();
     orders.forEach((o) =>
       o.items.forEach((it) =>
@@ -109,7 +178,7 @@ export default function DashboardAdmin() {
       .map(([item_id, total]) => ({ item_id, total }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 5);
-  })();
+  }, [orders]);
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 text-gray-800">
@@ -153,9 +222,9 @@ export default function DashboardAdmin() {
             ElectroStock ⚡ – Admin
           </h1>
           <nav className="flex flex-wrap gap-3 sm:gap-6 text-gray-700 font-medium text-sm md:text-base">
-            <a href="/" className="hover:text-blue-700 transition">
+            <button onClick={logout} className="hover:text-blue-700 transition">
               Sair
-            </a>
+            </button>
           </nav>
         </header>
 
@@ -165,9 +234,7 @@ export default function DashboardAdmin() {
           </h2>
 
           {error && <p className="text-red-500 mb-3">{error}</p>}
-          {success && tab !== "reports" && (
-            <p className="text-green-600 mb-3">{success}</p>
-          )}
+          {success && tab !== "reports" && <p className="text-green-600 mb-3">{success}</p>}
 
           {tab === "reports" ? (
             <div className="space-y-6">
@@ -194,37 +261,27 @@ export default function DashboardAdmin() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white rounded-2xl shadow p-5">
-                  <h3 className="text-lg font-semibold mb-2">
-                    Pedidos por status
-                  </h3>
+                  <h3 className="text-lg font-semibold mb-2">Pedidos por status</h3>
                   <ul className="space-y-1 text-sm">
                     <li className="flex justify-between">
-                      <span>Pendentes</span>
-                      <span>{totalPorStatus.pending ?? 0}</span>
+                      <span>Pendentes</span><span>{totalPorStatus.pending ?? 0}</span>
                     </li>
                     <li className="flex justify-between">
-                      <span>Aprovados</span>
-                      <span>{totalPorStatus.approved ?? 0}</span>
+                      <span>Aprovados</span><span>{totalPorStatus.approved ?? 0}</span>
                     </li>
                     <li className="flex justify-between">
-                      <span>Recusados</span>
-                      <span>{totalPorStatus.rejected ?? 0}</span>
+                      <span>Recusados</span><span>{totalPorStatus.rejected ?? 0}</span>
                     </li>
                     <li className="flex justify-between">
-                      <span>Finalizados</span>
-                      <span>{totalPorStatus.finished ?? 0}</span>
+                      <span>Finalizados</span><span>{totalPorStatus.finished ?? 0}</span>
                     </li>
                   </ul>
                 </div>
 
                 <div className="bg-white rounded-2xl shadow p-5">
-                  <h3 className="text-lg font-semibold mb-2">
-                    Top 5 itens mais pedidos
-                  </h3>
+                  <h3 className="text-lg font-semibold mb-2">Top 5 itens mais pedidos</h3>
                   {pedidosPorItem.length === 0 ? (
-                    <p className="text-sm text-gray-500">
-                      Ainda não há itens em pedidos.
-                    </p>
+                    <p className="text-sm text-gray-500">Ainda não há itens em pedidos.</p>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="min-w-full text-sm">
@@ -254,17 +311,12 @@ export default function DashboardAdmin() {
                 <p className="text-gray-500">Nenhum pedido nesta categoria.</p>
               ) : (
                 filteredOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="bg-white rounded-2xl shadow p-4 md:p-5 flex flex-col"
-                  >
+                  <div key={order.id} className="bg-white rounded-2xl shadow p-4 md:p-5 flex flex-col">
                     <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
                       <div>
-                        <p className="text-sm text-gray-500">
-                          Pedido #{order.id}
-                        </p>
+                        <p className="text-sm text-gray-500">Pedido #{order.id}</p>
                         <p className="text-sm text-gray-600 break-all">
-                          Solicitante: <b>{order.user_email}</b>
+                          Solicitante: <b>{getOrderEmail(order)}</b>
                         </p>
                       </div>
                       <span
@@ -279,16 +331,9 @@ export default function DashboardAdmin() {
 
                     <ul className="mt-3 border-t pt-3 text-sm space-y-1">
                       {order.items.map((i) => (
-                        <li
-                          key={i.item_id}
-                          className="flex justify-between gap-2"
-                        >
-                          <span className="truncate">
-                            {getItemName(i.item_id)}
-                          </span>
-                          <span className="whitespace-nowrap">
-                            Qtde: {i.quantity}
-                          </span>
+                        <li key={i.item_id} className="flex justify-between gap-2">
+                          <span className="truncate">{getItemName(i.item_id)}</span>
+                          <span className="whitespace-nowrap">Qtde: {i.quantity}</span>
                         </li>
                       ))}
                     </ul>
@@ -299,7 +344,7 @@ export default function DashboardAdmin() {
                           <button
                             onClick={() => updateStatus(order.id, "approve")}
                             disabled={loadingAction === order.id}
-                            className="flex-1 min-w-[120px] py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 text-sm"
+                            className="flex-1 min-w-[120px] py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 text-sm disabled:opacity-70"
                           >
                             Aprovar
                           </button>
@@ -307,7 +352,7 @@ export default function DashboardAdmin() {
                           <button
                             onClick={() => updateStatus(order.id, "reject")}
                             disabled={loadingAction === order.id}
-                            className="flex-1 min-w-[120px] py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 text-sm"
+                            className="flex-1 min-w-[120px] py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 text-sm disabled:opacity-70"
                           >
                             Recusar
                           </button>
@@ -318,17 +363,14 @@ export default function DashboardAdmin() {
                         <button
                           onClick={() => updateStatus(order.id, "finish")}
                           disabled={loadingAction === order.id}
-                          className="flex-1 min-w-[140px] py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm"
+                          className="flex-1 min-w-[140px] py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm disabled:opacity-70"
                         >
                           Finalizar
                         </button>
                       )}
 
-                      {(order.status === "rejected" ||
-                        order.status === "finished") && (
-                        <p className="text-xs text-gray-500">
-                          Nenhuma ação disponível.
-                        </p>
+                      {(order.status === "rejected" || order.status === "finished") && (
+                        <p className="text-xs text-gray-500">Nenhuma ação disponível.</p>
                       )}
                     </div>
                   </div>

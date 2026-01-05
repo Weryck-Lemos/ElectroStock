@@ -1,46 +1,75 @@
 # ⚡ ElectroStock
 
-Sistema web simples desenvolvido como parte da disciplina **Desenvolvimento de Software para a Web** — Universidade Federal do Ceará (UFC), semestre **2025.2**.
+Sistema web desenvolvido como parte da disciplina **Desenvolvimento de Software para a Web** — Universidade Federal do Ceará (UFC), semestre **2025.2**.
 
-## 📋 Descrição
+O **ElectroStock** é uma aplicação full stack para simular o gerenciamento de itens de um almoxarifado e o fluxo de pedidos (usuário solicita, administrador aprova/recusa/finaliza).
 
-O **ElectroStock** é uma aplicação em React com TypeScript que simula o sistema de gerenciamento de estoque de uma empresa.  
-O projeto conta com páginas de **Login**, **Registro** e **Home**, além de um pequeno **modal informativo** acessado pelo menu “Sobre”.
+---
 
-## 🚀 Tecnologias utilizadas
+## 📋 Visão Geral
 
-- **React + Vite**
-- **TypeScript**
-- **TailWind CSS**
-- **React Router DOM**
-- **FastAPI**
-- **Pydantic**
-- **Uvicorn**
-- **Fetch API**
-## ⚙️ Como executar
+### Funcionalidades principais
+- **Autenticação com JWT** (registro e login)
+- **Usuário**
+  - Visualiza itens disponíveis
+  - Monta carrinho e **cria pedidos**
+  - Acompanha status dos próprios pedidos
+  - Edita perfil (email e/ou senha)
+- **Administrador (admin)**
+  - Visualiza pedidos por status (pendente/aprovado/recusado/finalizado)
+  - Aprova, recusa e finaliza pedidos
+  - Acesso a relatórios resumidos no painel admin
 
-1. Clone este repositório:
-  ```bash
-  git clone https://github.com/Weryck-Lemos/ElectroStock.git
-  ```
+---
 
-2. Acessar a pasta:
-  ```bash
-  cd ElectroStock
-  ```
+## 🧱 Modelo de Dados (ER)
 
-3. Instale as dependências:
-```bash
-npm install
-```
+Entidades principais (mínimo de 5 entidades relacionadas):
+- **User**: usuários cadastrados (role `user` ou `admin`)
+- **Category**: categorias de itens
+- **Item**: itens do almoxarifado, vinculados a uma categoria
+- **Order**: pedido criado por um usuário, com status
+- **OrderItem**: itens dentro do pedido (associação entre Order e Item)
 
-4. Inicie o servidor de desenvolvimento:
-```bash
-npm run dev
-```
+Diagrama ER (Mermaid):
 
-5. Inicie o backend:
-```bash
-cd backend
-./start_backend.sh
-```
+```mermaid
+erDiagram
+  USERS {
+    int id PK
+    string name
+    string email "unique"
+    string password_hash
+    string role
+  }
+
+  CATEGORIES {
+    int id PK
+    string name "unique"
+  }
+
+  ITEMS {
+    int id PK
+    string name
+    string description
+    int stock
+    int category_id FK
+  }
+
+  ORDERS {
+    int id PK
+    int user_id FK
+    string status
+  }
+
+  ORDER_ITEMS {
+    int id PK
+    int order_id FK
+    int item_id FK
+    int quantity
+  }
+
+  USERS ||--o{ ORDERS : "faz"
+  CATEGORIES ||--o{ ITEMS : "classifica"
+  ORDERS ||--o{ ORDER_ITEMS : "contém"
+  ITEMS ||--o{ ORDER_ITEMS : "compõe"

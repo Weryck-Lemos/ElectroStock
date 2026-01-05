@@ -5,16 +5,32 @@ import mailIcon from "./imagens/mail.png";
 import lockIcon from "./imagens/lock.png";
 import wallpaper from "../../imagens/wallpaper.jpg";
 
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: "admin" | "user" | string;
+interface ApiError {
+  detail?: unknown; // pode vir string, array (422), etc.
 }
 
-interface AuthResponse {
-  message: string;
-  user: User;
+function detailToString(detail: unknown): string {
+  if (!detail) return "";
+  if (typeof detail === "string") return detail;
+
+  // FastAPI/Pydantic 422 costuma vir como array: [{loc, msg, type}, ...]
+  if (Array.isArray(detail)) {
+    return detail
+      .map((d: any) => {
+        const loc = Array.isArray(d?.loc) ? d.loc.join(".") : "";
+        const msg = d?.msg ?? JSON.stringify(d);
+        return loc ? `${loc}: ${msg}` : msg;
+      })
+      .join(" | ");
+  }
+
+  if (typeof detail === "object") {
+    // tenta algo “legível”
+    const maybeMsg = (detail as any)?.message;
+    return maybeMsg ? String(maybeMsg) : JSON.stringify(detail);
+  }
+
+  return String(detail);
 }
 
 export default function Registrar() {
@@ -40,10 +56,16 @@ export default function Registrar() {
       return;
     }
 
+    // (Opcional) evita 422 comum
+    if (senha.length < 4) {
+      setErro("A senha deve ter pelo menos 4 caracteres.");
+      return;
+    }
+
     try {
       setLoading(true);
 
-      const resp = await fetch("http://localhost:8000/register", {
+      const resp = await fetch("http://127.0.0.1:8000/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -53,16 +75,18 @@ export default function Registrar() {
         }),
       });
 
-      const data = (await resp.json()) as AuthResponse | { detail?: string };
+      // protege contra respostas sem JSON
+      const data = (await resp.json().catch(() => ({}))) as ApiError;
 
       if (!resp.ok) {
-        const detail = (data as any).detail ?? "Erro ao registrar.";
-        setErro(detail);
+        const msg = detailToString(data.detail) || "Erro ao registrar.";
+        setErro(msg);
         return;
       }
 
       navigate("/login");
     } catch (e) {
+      console.error("Erro no register:", e);
       setErro("Erro de conexão com o servidor.");
     } finally {
       setLoading(false);
@@ -136,11 +160,7 @@ export default function Registrar() {
           />
         </div>
 
-        {erro && (
-          <p className="text-red-200 text-sm mb-3 text-left">
-            {erro}
-          </p>
-        )}
+        {erro && <p className="text-red-200 text-sm mb-3 text-left">{erro}</p>}
 
         <button
           type="button"

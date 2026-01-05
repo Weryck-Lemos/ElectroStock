@@ -1,4 +1,7 @@
-import {useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+
+const API_URL = "http://127.0.0.1:8000";
 
 type Item = {
   id: number;
@@ -21,12 +24,13 @@ type Status = "pending" | "approved" | "rejected" | "finished";
 
 type Order = {
   id: number;
-  user_email: string;
-  items: OrderItem[];
   status: Status;
+  items: OrderItem[];
+  user_email?: string;
+  user?: { email?: string; name?: string };
 };
 
-type Section = "order"| "myOrders" | "profile"|"settings";
+type Section = "order" | "myOrders" | "profile" | "settings";
 
 type User = {
   id: number;
@@ -35,7 +39,20 @@ type User = {
   role: string;
 };
 
+type ApiError = { detail?: string };
+
+function getToken() {
+  return localStorage.getItem("token") || "";
+}
+
+function authHeaders() {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export default function Dashboard() {
+  const navigate = useNavigate();
+
   const [items, setItems] = useState<Item[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -44,16 +61,18 @@ export default function Dashboard() {
   const [loadingOrdersList, setLoadingOrdersList] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [section, setSection]= useState<Section>("order");
+  const [section, setSection] = useState<Section>("order");
+
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [profileMsg, setProfileMsg] = useState("");
   const [profileError, setProfileError] = useState("");
+
   const [notifyEmail, setNotifyEmail] = useState<boolean>(true);
   const [darkMode, setDarkMode] = useState<boolean>(false);
 
-  const statusLabel: Record<Status, string> ={
+  const statusLabel: Record<Status, string> = {
     pending: "Pendente",
     approved: "Aprovado",
     rejected: "Recusado",
@@ -70,16 +89,14 @@ export default function Dashboard() {
   const getItemName = (id: number) =>
     items.find((i) => i.id === id)?.name ?? `Item #${id}`;
 
-  useEffect(() => {
-    const data = localStorage.getItem("user");
-    if (data) {
-      try {
-        const u = JSON.parse(data) as User;
-        setCurrentUser(u);
-        setNewEmail(u.email);
-      } catch {}
-    }
+  function logout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
+  }
 
+  // Carrega settings locais
+  useEffect(() => {
     const cfg = localStorage.getItem("settings");
     if (cfg) {
       try {
@@ -91,19 +108,62 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const settings = { notifyEmail, darkMode };
-    localStorage.setItem("settings", JSON.stringify(settings));
+    localStorage.setItem("settings", JSON.stringify({ notifyEmail, darkMode }));
   }, [notifyEmail, darkMode]);
 
+  // Carrega usuário do token (fonte de verdade)
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    async function loadMe() {
+      try {
+        const resp = await fetch(`${API_URL}/users/me`, {
+          headers: { ...authHeaders() },
+        });
+
+        const data = (await resp.json().catch(() => ({}))) as User | ApiError;
+        if (!resp.ok) {
+          // token inválido/expirado
+          logout();
+          return;
+        }
+
+        const u = data as User;
+        setCurrentUser(u);
+        setNewEmail(u.email);
+        localStorage.setItem("user", JSON.stringify(u));
+      } catch {
+        setError("Erro ao carregar usuário. Faça login novamente.");
+      }
+    }
+
+    loadMe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate]);
+
+  // Carrega itens
   useEffect(() => {
     async function fetchItems() {
       try {
         setLoadingItems(true);
         setError("");
-        const resp = await fetch("http://127.0.0.1:8000/items");
-        if (!resp.ok) throw new Error();
-        const data: Item[] = await resp.json();
-        setItems(data);
+
+        const resp = await fetch(`${API_URL}/items`, {
+          headers: { ...authHeaders() },
+        });
+
+        const data = (await resp.json().catch(() => [])) as Item[] | ApiError;
+
+        if (!resp.ok) {
+          setError((data as ApiError).detail ?? "Não foi possível carregar os itens do almoxarifado.");
+          return;
+        }
+
+        setItems(data as Item[]);
       } catch {
         setError("Não foi possível carregar os itens do almoxarifado.");
       } finally {
@@ -115,14 +175,29 @@ export default function Dashboard() {
 
   async function fetchOrders() {
     if (!currentUser) return;
+
     try {
       setLoadingOrdersList(true);
       setError("");
-      const resp = await fetch("http://127.0.0.1:8000/orders");
-      if (!resp.ok) throw new Error();
-      const data: Order[] = await resp.json();
-      const myOrders = data.filter((o) => o.user_email === currentUser.email);
-      setOrders(myOrders);
+
+      const resp = await fetch(`${API_URL}/orders`, {
+        headers: { ...authHeaders() },
+      });
+
+      const data = (await resp.json().catch(() => [])) as Order[] | ApiError;
+
+      if (!resp.ok) {
+        setError((data as ApiError).detail ?? "Não foi possível carregar seus pedidos.");
+        return;
+      }
+
+      // Fallback: se vier “todos”, filtramos por email
+      const list = data as Order[];
+      const myEmail = currentUser.email;
+      const myOrders = list.filter((o) => (o.user_email ?? o.user?.email) === myEmail);
+
+      // Se o backend já devolve só “meus pedidos”, o filtro não atrapalha.
+      setOrders(myOrders.length > 0 ? myOrders : list);
     } catch {
       setError("Não foi possível carregar seus pedidos.");
     } finally {
@@ -131,10 +206,9 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    if (section === "myOrders") {
-      fetchOrders();
-    }
-  }, [section]);
+    if (section === "myOrders") fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section, currentUser]);
 
   function addToCart(item: Item) {
     setError("");
@@ -155,11 +229,7 @@ export default function Dashboard() {
       removeFromCart(itemId);
       return;
     }
-    setCart((prev) =>
-      prev.map((ci) =>
-        ci.item.id === itemId ? { ...ci, quantity } : ci
-      )
-    );
+    setCart((prev) => prev.map((ci) => (ci.item.id === itemId ? { ...ci, quantity } : ci)));
   }
 
   function removeFromCart(itemId: number) {
@@ -182,24 +252,25 @@ export default function Dashboard() {
 
     try {
       setLoadingOrder(true);
+
+      // NOVO BACKEND: não envia user_email; ele pega do token
       const body = {
-        user_email: currentUser.email,
         items: cart.map((ci) => ({
           item_id: ci.item.id,
           quantity: ci.quantity,
         })),
       };
 
-      const resp = await fetch("http://127.0.0.1:8000/orders", {
+      const resp = await fetch(`${API_URL}/orders`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(body),
       });
 
+      const data = (await resp.json().catch(() => ({}))) as ApiError;
+
       if (!resp.ok) {
-        const data = await resp.json().catch(() => ({}));
-        const detail = (data as any).detail ?? "Erro ao enviar pedido.";
-        setError(detail);
+        setError(data.detail ?? "Erro ao enviar pedido.");
         return;
       }
 
@@ -222,29 +293,30 @@ export default function Dashboard() {
       return;
     }
 
-    if (!newEmail && !newPassword) {
+    const emailChanged = newEmail && newEmail !== currentUser.email;
+    const passChanged = !!newPassword;
+
+    if (!emailChanged && !passChanged) {
       setProfileError("Informe novo email e/ou nova senha.");
       return;
     }
 
     try {
-      const body = {
-        current_email: currentUser.email,
-        new_email: newEmail !== currentUser.email ? newEmail : null,
-        new_password: newPassword || null,
-      };
+      // NOVO BACKEND: PUT /users/me com token
+      const body: any = {};
+      if (emailChanged) body.email = newEmail;
+      if (passChanged) body.password = newPassword;
 
-      const resp = await fetch("http://127.0.0.1:8000/users/profile", {
+      const resp = await fetch(`${API_URL}/users/me`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(body),
       });
 
-      const data = await resp.json().catch(() => ({}));
+      const data = (await resp.json().catch(() => ({}))) as User | ApiError;
 
       if (!resp.ok) {
-        const detail = (data as any).detail ?? "Erro ao atualizar perfil.";
-        setProfileError(detail);
+        setProfileError((data as ApiError).detail ?? "Erro ao atualizar perfil.");
         return;
       }
 
@@ -287,9 +359,7 @@ export default function Dashboard() {
                     {items.map((item) => (
                       <tr key={item.id} className="border-b">
                         <td className="py-2 pr-2 font-medium break-words">{item.name}</td>
-                        <td className="py-2 pr-2 text-gray-600">
-                          {item.description || "-"}
-                        </td>
+                        <td className="py-2 pr-2 text-gray-600">{item.description || "-"}</td>
                         <td className="py-2 text-center">{item.stock}</td>
                         <td className="py-2 text-center">
                           <button
@@ -316,30 +386,21 @@ export default function Dashboard() {
           {success && <p className="text-green-600 text-sm mb-3">{success}</p>}
 
           {cart.length === 0 ? (
-            <p className="text-gray-500">
-              Nenhum item no carrinho. Adicione itens na lista ao lado.
-            </p>
+            <p className="text-gray-500">Nenhum item no carrinho. Adicione itens na lista ao lado.</p>
           ) : (
             <div className="flex-1 flex flex-col gap-3 overflow-y-auto max-h-64 md:max-h-[45vh]">
               {cart.map((ci) => (
-                <div
-                  key={ci.item.id}
-                  className="flex items-center justify-between gap-3 border rounded-xl px-3 py-2"
-                >
+                <div key={ci.item.id} className="flex items-center justify-between gap-3 border rounded-xl px-3 py-2">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{ci.item.name}</p>
-                    <p className="text-xs text-gray-500">
-                      Estoque: {ci.item.stock}
-                    </p>
+                    <p className="text-xs text-gray-500">Estoque: {ci.item.stock}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
                       min={1}
                       value={ci.quantity}
-                      onChange={(e) =>
-                        updateQuantity(ci.item.id, Number(e.target.value))
-                      }
+                      onChange={(e) => updateQuantity(ci.item.id, Number(e.target.value))}
                       className="w-16 border rounded-lg px-2 py-1 text-sm"
                     />
                     <button
@@ -390,15 +451,12 @@ export default function Dashboard() {
         {!loadingOrdersList && orders.length > 0 && (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {orders.map((order) => (
-              <div
-                key={order.id}
-                className="bg-white rounded-2xl shadow p-4 md:p-5 flex flex-col gap-2"
-              >
+              <div key={order.id} className="bg-white rounded-2xl shadow p-4 md:p-5 flex flex-col gap-2">
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
                   <div>
                     <p className="text-sm text-gray-500">Pedido #{order.id}</p>
                     <p className="text-sm text-gray-600 break-all">
-                      Enviado para: <b>{order.user_email}</b>
+                      Solicitante: <b>{order.user_email ?? order.user?.email ?? "—"}</b>
                     </p>
                   </div>
                   <span
@@ -440,10 +498,7 @@ export default function Dashboard() {
           </p>
         )}
 
-        <form
-          onSubmit={handleUpdateProfile}
-          className="bg-white rounded-2xl shadow p-4 md:p-6 space-y-4"
-        >
+        <form onSubmit={handleUpdateProfile} className="bg-white rounded-2xl shadow p-4 md:p-6 space-y-4">
           {profileError && <p className="text-sm text-red-500">{profileError}</p>}
           {profileMsg && <p className="text-sm text-green-600">{profileMsg}</p>}
 
@@ -524,9 +579,9 @@ export default function Dashboard() {
             >
               Editar Perfil
             </button>
-            <a href="/" className="hover:text-blue-700 transition">
+            <button onClick={logout} className="hover:text-blue-700 transition">
               Sair
-            </a>
+            </button>
           </nav>
         </header>
 
