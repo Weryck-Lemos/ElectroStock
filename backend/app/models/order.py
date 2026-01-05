@@ -11,6 +11,5 @@ class Order(Base):
     user = relationship("User", back_populates="orders")
 
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
-    # pending / approved / rejected / finished
 
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")

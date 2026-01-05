@@ -95,7 +95,6 @@ export default function Dashboard() {
     navigate("/login");
   }
 
-  // Carrega settings locais
   useEffect(() => {
     const cfg = localStorage.getItem("settings");
     if (cfg) {
@@ -111,7 +110,6 @@ export default function Dashboard() {
     localStorage.setItem("settings", JSON.stringify({ notifyEmail, darkMode }));
   }, [notifyEmail, darkMode]);
 
-  // Carrega usuário do token (fonte de verdade)
   useEffect(() => {
     const token = getToken();
     if (!token) {
@@ -127,7 +125,6 @@ export default function Dashboard() {
 
         const data = (await resp.json().catch(() => ({}))) as User | ApiError;
         if (!resp.ok) {
-          // token inválido/expirado
           logout();
           return;
         }
@@ -142,10 +139,8 @@ export default function Dashboard() {
     }
 
     loadMe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
-  // Carrega itens
   useEffect(() => {
     async function fetchItems() {
       try {
@@ -191,12 +186,10 @@ export default function Dashboard() {
         return;
       }
 
-      // Fallback: se vier “todos”, filtramos por email
       const list = data as Order[];
       const myEmail = currentUser.email;
       const myOrders = list.filter((o) => (o.user_email ?? o.user?.email) === myEmail);
 
-      // Se o backend já devolve só “meus pedidos”, o filtro não atrapalha.
       setOrders(myOrders.length > 0 ? myOrders : list);
     } catch {
       setError("Não foi possível carregar seus pedidos.");
@@ -207,7 +200,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (section === "myOrders") fetchOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section, currentUser]);
 
   function addToCart(item: Item) {
@@ -253,7 +245,6 @@ export default function Dashboard() {
     try {
       setLoadingOrder(true);
 
-      // NOVO BACKEND: não envia user_email; ele pega do token
       const body = {
         items: cart.map((ci) => ({
           item_id: ci.item.id,
@@ -302,7 +293,6 @@ export default function Dashboard() {
     }
 
     try {
-      // NOVO BACKEND: PUT /users/me com token
       const body: any = {};
       if (emailChanged) body.email = newEmail;
       if (passChanged) body.password = newPassword;

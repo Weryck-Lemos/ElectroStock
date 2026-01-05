@@ -6,14 +6,13 @@ import lockIcon from "./imagens/lock.png";
 import wallpaper from "../../imagens/wallpaper.jpg";
 
 interface ApiError {
-  detail?: unknown; // pode vir string, array (422), etc.
+  detail?: unknown; 
 }
 
 function detailToString(detail: unknown): string {
   if (!detail) return "";
   if (typeof detail === "string") return detail;
 
-  // FastAPI/Pydantic 422 costuma vir como array: [{loc, msg, type}, ...]
   if (Array.isArray(detail)) {
     return detail
       .map((d: any) => {
@@ -25,7 +24,6 @@ function detailToString(detail: unknown): string {
   }
 
   if (typeof detail === "object") {
-    // tenta algo “legível”
     const maybeMsg = (detail as any)?.message;
     return maybeMsg ? String(maybeMsg) : JSON.stringify(detail);
   }
@@ -56,7 +54,6 @@ export default function Registrar() {
       return;
     }
 
-    // (Opcional) evita 422 comum
     if (senha.length < 4) {
       setErro("A senha deve ter pelo menos 4 caracteres.");
       return;
@@ -75,7 +72,6 @@ export default function Registrar() {
         }),
       });
 
-      // protege contra respostas sem JSON
       const data = (await resp.json().catch(() => ({}))) as ApiError;
 
       if (!resp.ok) {

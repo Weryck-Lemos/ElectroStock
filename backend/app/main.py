@@ -6,7 +6,6 @@ from app.db.session import engine, SessionLocal
 from app.db.base import Base
 from app.core.config import settings
 
-# Importar models para registrar no metadata
 from app.models.user import User
 from app.models.category import Category
 from app.models.item import Item
@@ -40,10 +39,8 @@ def create_app() -> FastAPI:
     def root():
         return {"message": "API do ElectroStock rodando"}
 
-    # cria tabelas
     Base.metadata.create_all(bind=engine)
 
-    # routers
     app.include_router(auth_router)
     app.include_router(users_router)
     app.include_router(categories_router)
@@ -51,7 +48,6 @@ def create_app() -> FastAPI:
     app.include_router(orders_router)
     app.include_router(order_items_router)
 
-    # seed (admin + categorias + itens) na inicialização
     @app.on_event("startup")
     def seed():
         db: Session = SessionLocal()
@@ -66,7 +62,6 @@ def create_app() -> FastAPI:
                     role="admin",
                 )
 
-            # seed básico (opcional) – só cria se não existir nada
             has_any_category = db.query(Category).first() is not None
             if not has_any_category:
                 cat1 = create_category(db, "Componentes")

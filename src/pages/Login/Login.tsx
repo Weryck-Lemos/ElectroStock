@@ -35,7 +35,6 @@ export default function Login() {
     try {
       setLoading(true);
 
-      // 1) Login (JSON)
       const resp = await fetch("http://127.0.0.1:8000/auth/login-json", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,8 +50,6 @@ export default function Login() {
 
       const token = data.access_token;
       localStorage.setItem("token", token);
-
-      // 2) Buscar usuário logado
       const meResp = await fetch("http://127.0.0.1:8000/users/me", {
         headers: { Authorization: `Bearer ${token}` },
       });

@@ -24,9 +24,8 @@ def create_order(db: Session, user_id: int, items: list[dict]) -> Order:
 
     order = Order(user_id=user_id, status="pending")
     db.add(order)
-    db.flush()  # cria order.id sem commit
+    db.flush() 
 
-    # valida e debita estoque
     for oi in items:
         item = db.get(Item, oi["item_id"])
         if not item:
@@ -47,7 +46,6 @@ def set_status(db: Session, order_id: int, new_status: str, only_if: str | None 
     if only_if and order.status != only_if:
         raise HTTPException(400, f"Só é possível mudar status quando estiver '{only_if}'.")
 
-    # Se rejeitar e quiser restaurar estoque
     if new_status == "rejected" and restore_stock_on_reject:
         if order.status != "pending":
             raise HTTPException(400, "Só é possível rejeitar pedidos pendentes.")
@@ -66,7 +64,6 @@ def delete_order(db: Session, order_id: int):
     if order.status != "pending":
         raise HTTPException(400, "Só é possível excluir pedidos pendentes.")
 
-    # restaurar estoque
     for oi in order.items:
         item = db.get(Item, oi.item_id)
         if item:

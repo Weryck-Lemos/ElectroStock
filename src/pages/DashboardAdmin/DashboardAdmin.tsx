@@ -11,8 +11,8 @@ type Order = {
   id: number;
   status: Status;
   items: OrderItem[];
-  user_email?: string; // pode vir assim
-  user?: { email?: string; name?: string }; // ou assim, dependendo do backend
+  user_email?: string;
+  user?: { email?: string; name?: string }; 
 };
 
 type ApiError = { detail?: string };
@@ -42,7 +42,6 @@ export default function DashboardAdmin() {
     navigate("/login");
   }
 
-  // Garante que é admin e token existe
   useEffect(() => {
     const token = getToken();
     if (!token) {
@@ -50,7 +49,6 @@ export default function DashboardAdmin() {
       return;
     }
 
-    // opcional: checar role salva no localStorage (rápido)
     const rawUser = localStorage.getItem("user");
     if (rawUser) {
       try {
@@ -59,7 +57,6 @@ export default function DashboardAdmin() {
           navigate("/dashboard");
         }
       } catch {
-        // ignora
       }
     }
   }, [navigate]);
