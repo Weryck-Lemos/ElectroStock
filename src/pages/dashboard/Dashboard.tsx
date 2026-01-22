@@ -26,8 +26,7 @@ type Order = {
   id: number;
   status: Status;
   items: OrderItem[];
-  user_email?: string;
-  user?: { email?: string; name?: string };
+  user_id: number;
 };
 
 type Section = "order" | "myOrders" | "profile" | "settings";
@@ -175,7 +174,7 @@ export default function Dashboard() {
       setLoadingOrdersList(true);
       setError("");
 
-      const resp = await fetch(`${API_URL}/orders`, {
+      const resp = await fetch(`${API_URL}/orders/me`, {
         headers: { ...authHeaders() },
       });
 
@@ -186,11 +185,8 @@ export default function Dashboard() {
         return;
       }
 
-      const list = data as Order[];
-      const myEmail = currentUser.email;
-      const myOrders = list.filter((o) => (o.user_email ?? o.user?.email) === myEmail);
+      setOrders(data as Order[]);
 
-      setOrders(myOrders.length > 0 ? myOrders : list);
     } catch {
       setError("Não foi possível carregar seus pedidos.");
     } finally {

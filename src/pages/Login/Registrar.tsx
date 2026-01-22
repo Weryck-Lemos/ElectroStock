@@ -54,8 +54,8 @@ export default function Registrar() {
       return;
     }
 
-    if (senha.length < 4) {
-      setErro("A senha deve ter pelo menos 4 caracteres.");
+    if (senha.length < 6) {
+      setErro("A senha deve ter pelo menos 6 caracteres.");
       return;
     }
 
