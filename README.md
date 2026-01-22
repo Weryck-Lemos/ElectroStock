@@ -198,3 +198,14 @@ erDiagram
   ORDERS ||--o{ ORDER_ITEMS : "inclui"
   ITEMS ||--o{ ORDER_ITEMS : "é solicitado em"
 
+## 🔑 Credenciais para teste
+
+> **Atenção:** estas credenciais são apenas para ambiente local/de desenvolvimento.
+
+- **Administrador (admin)**
+  - Email: `weryyck@gmail.com`
+  - Senha: `1456`
+
+- **Usuário (user)**
+  - Email: `testanando@gmail.com`
+  - Senha: `123456`
