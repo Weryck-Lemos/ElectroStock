@@ -68,8 +68,6 @@ O projeto é composto por:
 
 ## 🗂 Estrutura do projeto
 
-> A organização pode variar conforme evolução do repositório, mas o padrão é separar backend e frontend.
-
 ### Backend
 - `backend/` (ou raiz, dependendo do seu layout)
 - `app/main.py` instancia o FastAPI e registra routers
@@ -197,7 +195,7 @@ erDiagram
   CATEGORIES ||--o{ ITEMS : "contém"
   ORDERS ||--o{ ORDER_ITEMS : "inclui"
   ITEMS ||--o{ ORDER_ITEMS : "é solicitado em"
-
+```
 ## 🔑 Credenciais para teste
 
 > **Atenção:** estas credenciais são apenas para ambiente local/de desenvolvimento.
@@ -207,5 +205,5 @@ erDiagram
   - Senha: `1456`
 
 - **Usuário (user)**
-  - Email: `testanando@gmail.com`
+  - Email: `testando@gmail.com`
   - Senha: `123456`
